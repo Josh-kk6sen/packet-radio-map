@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 KK6SEN (Josh)
 """Check for MAP packets that failed to update map markers.
 Runs every 2 hours via cron. Reports only when issues found or when all clear.
 """

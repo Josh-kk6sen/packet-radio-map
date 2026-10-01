@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 KK6SEN (Josh)
 """
 KISS TNC Capture Daemon + Web Dashboard Server
 Connects to a Direwolf KISS TCP port, parses AX.25 frames,

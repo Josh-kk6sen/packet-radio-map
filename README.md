@@ -1,6 +1,6 @@
 # PacketRadio Map
 
-A self-contained packet-radio (APRS/AX.25) **live map + dashboard** that listens to a
+A self-contained packet-radio (AX.25) **live map + dashboard** that listens to a
 [KISS](https://en.wikipedia.org/wiki/KISS_(TNC)) TNC on TCP, decodes AX.25 frames, stores
 them in SQLite, and serves an interactive Leaflet map and a statistics dashboard over HTTP.
 
@@ -14,7 +14,7 @@ HTML pages.
 ## What it does
 
 - Connects to a KISS TNC (e.g. Direwolf) over TCP and decodes incoming AX.25 frames.
-- Extracts APRS-style station reports (position, call sign, display name) including
+- Extracts AX.25 station reports (position, call sign, display name) including
   `<MAP:lat,lon,node,text>` messages.
 - Stores packets and marker state in SQLite (`db/packet_radio.db`).
 - Serves:

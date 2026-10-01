@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 KK6SEN (Josh)
 # Start/stop the packet radio monitor
 set -e
 
