@@ -1,5 +1,8 @@
 # PacketRadio Map
 
+![Vibe Coded](https://img.shields.io/badge/vibe--coded-yes-ff69b4)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A self-contained packet-radio (AX.25) **live map + dashboard** that listens to a
 [KISS](https://en.wikipedia.org/wiki/KISS_(TNC)) TNC on TCP, decodes AX.25 frames, stores
 them in SQLite, and serves an interactive Leaflet map and a statistics dashboard over HTTP.
@@ -107,6 +110,13 @@ monitor_map_updates.py  # cron health checker
 tunnel_proxy.py         # optional allow-list reverse proxy
 start.sh                # start/stop/status/logs helper
 ```
+
+## How this was built
+
+This project is **vibe coded** — built with AI assistance (code, refactors, and docs
+generated with an LLM assistant) and reviewed by the author (KK6SEN). It started from
+scratch as a packet-radio monitoring tool, evolved through iterative feature work, and
+runs live against the 145.050 MHz station. Human-reviewed before every deployment.
 
 ## License
 
