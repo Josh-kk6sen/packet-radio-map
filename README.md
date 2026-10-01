@@ -31,6 +31,10 @@ HTML pages.
 - A KISS TNC reachable over TCP (e.g. **Direwolf** in KISS mode, `-P 8001`)
 - No third-party Python packages — the stdlib does it all.
 
+**No database setup needed.** Data is stored in an embedded SQLite database
+(`db/packet_radio.db`) that the daemon creates automatically on first run —
+there's nothing to install or configure.
+
 ## Quick start
 
 1. Point the daemon at your TNC (default `127.0.0.1:8001`):
