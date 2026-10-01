@@ -8,6 +8,9 @@ Built for — and running on — the **KK6SEN** station (145.050 MHz). The code 
 simple: no build step, no framework, just a single Python daemon and a couple of static
 HTML pages.
 
+> **Live demo:** see this running on the KK6SEN station at
+> [**map.kk6sen.com**](https://map.kk6sen.com) (map at `/map.html`).
+
 ## What it does
 
 - Connects to a KISS TNC (e.g. Direwolf) over TCP and decodes incoming AX.25 frames.
