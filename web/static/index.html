@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Packet Radio Monitor</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg-primary: #0d0d1a;
+    --bg-secondary: #131328;
+    --bg-card: #1a1a35;
+    --bg-hover: #222244;
+    --border: #2a2a50;
+    --text-primary: #e0e0f0;
+    --text-secondary: #8888aa;
+    --text-muted: #555577;
+    --accent: #00d4aa;
+    --accent-dim: #00a080;
+    --cyan: #00bcd4;
+    --warning: #ff9800;
+    --danger: #ff5252;
+    --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    --radius: 8px;
+    /* Font size variables (overridden by size classes below) */
+    --fs-card-title: 11px;
+    --fs-table-header: 9px;
+    --fs-table-cell: 10px;
+    --fs-sm: 10px;
+    --fs-body: 12px;
+  }
+
+  /* ─── Font Size Presets ─── */
+  .size-xs  { --fs-card-title: 9px; --fs-table-header: 7px;  --fs-table-cell: 8px;  --fs-sm: 8px;  --fs-body: 10px; }
+  .size-sm  { --fs-card-title: 10px; --fs-table-header: 8px;  --fs-table-cell: 9px; --fs-sm: 9px; --fs-body: 11px; }
+  .size-default { --fs-card-title: 11px; --fs-table-header: 9px; --fs-table-cell: 10px; --fs-sm: 10px; --fs-body: 12px; }
+  .size-lg  { --fs-card-title: 12px; --fs-table-header: 10px; --fs-table-cell: 11px; --fs-sm: 11px; --fs-body: 13px; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: wrap;
+  }
+
+  .header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+  }
+
+  .header h1::before {
+    content: "📡 ";
+    font-size: 20px;
+  }
+
+  .header-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .header-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .header-stat .num {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .header-stat.uptime .num {
+    color: var(--text-primary);
+  }
+
+  .header-btn {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .header-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+  .header-btn.paused {
+    border-color: var(--warning);
+    color: var(--warning);
+  }
+
+  .font-size-select {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' fill='%238888aa'%3E%3Cpath d='M0 0l4 5 4-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 20px;
+  }
+  .font-size-select:hover {
+    border-color: var(--accent-dim);
+  }
+  .font-size-select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    font-family: var(--font-mono);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+
+  .status-dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent-dim); }
+  .status-dot.error { background: var(--warning); }
+
+  /* ─── Layout ─── */
+  .container {
+    display: grid;
+    grid-template-columns: 1fr 200px 380px;
+    grid-template-rows: 1fr auto;
+    gap: 16px;
+    padding: 16px 20px;
+    height: calc(100vh - 58px);
+    max-width: 100%;
+  }
+
+  /* Left column: Live Feed card (col 1, row 1) */
+  .main-feed {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Middle column: Node Config (col 2, row 1 only) */
+  #node-config-col {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Right column: Heard Stations (col 3, full height — both rows) */
+  #heard-col {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Bottom row: Map + Messages (spans col 1 and 2, row 2) */
+  .bottom-row {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    height: 240px;
+  }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+  }
+
+  .card-header h2 {
+    font-size: var(--fs-card-title);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+  }
+
+  .card-header .count {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+    background: var(--bg-primary);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .card-body {
+    overflow: auto;
+    flex: 1;
+  }
+
+  /* ─── Tables ─── */
+  .card table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .main-feed table {
+    table-layout: fixed;
+  }
+
+  thead {
+    background: var(--bg-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  th {
+    padding: 7px 10px;
+    text-align: left;
+    font-size: var(--fs-table-header);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    position: relative;
+  }
+
+  /* Faint column divider lines (partial height) */
+  .main-feed td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .card table thead th::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 25%;
+    bottom: 25%;
+    width: 1px;
+    background: var(--border);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .card table thead th:first-child::before { display: none; }
+
+  td {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    color: var(--text-primary);
+    font-size: var(--fs-table-cell);
+  }
+
+  tr:hover { background: var(--bg-hover); }
+
+  .callsign {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--cyan);
+  }
+
+  .callsign-dest {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .frame-type {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+  }
+
+  .type-UI { color: var(--accent); border-color: var(--accent-dim); }
+  .type-I { color: #5dade2; border-color: #5dade2; }
+  .type-RR { color: #48c9b0; border-color: #48c9b0; }
+  .type-RNR { color: #f39c12; border-color: #f39c12; }
+  .type-REJ { color: #e74c3c; border-color: #e74c3c; }
+  .type-SREJ { color: #af7ac5; border-color: #af7ac5; }
+  .type-SABM { color: var(--warning); border-color: var(--warning); }
+  .type-SABME { color: var(--warning); border-color: var(--warning); }
+  .type-UA { color: var(--cyan); border-color: var(--cyan); }
+  .type-DISC { color: var(--danger); border-color: var(--danger); }
+  .type-DM { color: var(--text-muted); border-color: var(--text-muted); }
+  .type-FRMR { color: #c0392b; border-color: #c0392b; }
+  .type-XID { color: #a569bd; border-color: #a569bd; }
+  .type-TEST { color: #7f8c8d; border-color: #7f8c8d; }
+  .frame-type[class*="type-?0x"] { border-style: dashed; opacity: 0.6; }
+
+  .info-text {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    color: var(--text-secondary);
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .time-col {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+  }
+
+  .digi-col {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+  }
+
+  /* ─── Packet Feed ─── */
+  #packet-feed-body {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .packet-row-new {
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0.3; background: rgba(0, 212, 170, 0.05); }
+    to { opacity: 1; background: transparent; }
+  }
+
+  /* ─── Messages Panel Pinned Messages ─── */
+  #messages-container .msg-row {
+    padding: 4px 12px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  #messages-container .msg-row.pinned {
+    background: rgba(255, 193, 7, 0.08);
+    border-left: 3px solid #ffc107;
+  }
+  .msg-pin-btn {
+    cursor: pointer;
+    font-size: 14px;
+    margin-right: 6px;
+    padding: 0 4px;
+    border-radius: 3px;
+    opacity: 0.6;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .msg-pin-btn:hover {
+    opacity: 1;
+    background: rgba(255,204,0,0.1);
+  }
+  .msg-pin-btn.pinned {
+    opacity: 1;
+    color: #ffc107;
+    background: rgba(255,204,0,0.12);
+  }
+
+  /* ─── Scrollbar ─── */
+  .card-body::-webkit-scrollbar { width: 5px; }
+  .card-body::-webkit-scrollbar-track { background: var(--bg-primary); }
+  .card-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ─── Stations (right sidebar) ─── */
+  #heard-col .card {
+    flex: 1;
+    min-height: 0;
+  }
+
+  #heard-col .card-body {
+    overflow-y: auto;
+  }
+
+  /* ─── Node Config (middle column) ─── */
+  #node-config-col .card {
+    flex: 1;
+    min-height: 0;
+  }
+  #node-config-col .card-body {
+    overflow-y: auto;
+  }
+  .node-config-checkbox {
+    width: 12px;
+    height: 12px;
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+  #node-config-body td {
+    font-size: 9px;
+  }
+  #node-config-body td:first-child {
+    font-family: var(--font-mono);
+    color: var(--cyan);
+    font-weight: 600;
+  }
+  .node-config-row-disabled td:first-child {
+    color: var(--text-muted);
+    opacity: 0.6;
+  }
+  .node-config-state-high {
+    color: var(--warning) !important;
+  }
+  .node-config-state-static {
+    color: var(--accent) !important;
+  }
+  .node-config-td-check {
+    text-align: center;
+  }
+
+  .station-active {
+    border-left: 3px solid var(--accent);
+  }
+
+  .sort-arrow {
+    font-size: var(--fs-table-header);
+    color: var(--accent);
+    margin-left: 2px;
+  }
+
+  th[onclick] {
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: pointer;
+  }
+  th[onclick]:hover {
+    color: var(--accent);
+  }
+
+  /* ─── Packet Feed card (takes full height on left) ─── */
+  .main-feed .card:first-child {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .link-arrow {
+    color: var(--text-muted);
+    margin: 0 4px;
+  }
+
+  /* ─── Raw Packet Detail ─── */
+  #raw-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 16px 60px 16px 24px;
+    z-index: 1000;
+    max-height: 250px;
+    overflow-y: auto;
+    cursor: pointer;
+    transform: translateY(100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    visibility: hidden;
+  }
+  #raw-panel.open {
+    transform: translateY(0);
+    visibility: visible;
+  }
+  #raw-panel pre { cursor: text; }
+  #raw-panel h3 {
+    font-size: var(--fs-card-title);
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  #raw-panel pre {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    padding: 12px;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+
+  #raw-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 18px;
+    z-index: 5;
+  }
+  #raw-close:hover { color: var(--text-primary); }
+
+  /* ─── Type Filter Chips ─── */
+  .type-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    flex-wrap: wrap;
+    margin: 0 8px;
+  }
+
+  .type-filter-chip {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+    opacity: 0.4;
+  }
+  .type-filter-chip.active {
+    opacity: 1;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .type-filter-chip:hover {
+    opacity: 0.8;
+  }
+  .type-filter-chip.active:hover {
+    opacity: 1;
+  }
+
+  .type-filter-clear {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 1px 8px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px dashed var(--text-muted);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .type-filter-clear:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ─── Hide Digipeated Checkbox ─── */
+  .digi-filter-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    margin-right: 4px;
+  }
+  .digi-filter-label:hover { color: var(--text-secondary); }
+  .digi-filter-label input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* Bottom row: Map + Messages (spans cols 1-2 in container) */
+  .bottom-row .card {
+    flex: 1;
+    min-height: 0;
+  }
+  #mini-map {
+    width: 100%;
+    height: 100%;
+    min-height: 160px;
+    border-radius: 6px;
+    background: var(--bg-primary);
+  }
+  #mini-map .leaflet-container {
+    background: #0d0d1a;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 1300px) {
+    .container {
+      grid-template-columns: 1fr 380px;
+    }
+    #node-config-col { display: none; }
+    .bottom-row {
+      grid-column: 1 / 2;  /* only col 1 when node config hidden */
+    }
+  }
+  @media (max-width: 1000px) {
+    .container {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr auto auto;
+      height: auto;
+    }
+    .main-feed { grid-column: 1; grid-row: 1; }
+    #heard-col { grid-column: 1; grid-row: 3; max-height: 500px; }
+    .bottom-row {
+      grid-column: 1;
+      grid-row: 2;
+    }
+    #node-config-col { display: none; }
+    .header { gap: 8px; }
+    .header-stat { font-size: 10px; padding: 2px 8px; }
+    .size-xs .header-stat { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── Header ─── -->
+<div class="header">
+  <h1>Packet Radio Monitor</h1>
+  <span class="header-badge">145.050 MHz</span>
+  <span class="header-badge">Direwolf KISS</span>
+  <span class="header-stat" title="Total Packets Received">📦 <span class="num" id="hdr-total-packets">0</span></span>
+  <span class="header-stat" title="Unique Stations Heard">📡 <span class="num" id="hdr-unique-stations">0</span></span>
+  <span class="header-stat" title="Active Node Links">🔗 <span class="num" id="hdr-active-links">0</span></span>
+  <span class="header-stat uptime" title="Daemon Uptime">⏱ <span class="num" id="hdr-uptime">--:--:--</span></span>
+  <button class="header-btn" id="hdr-pause-btn" onclick="togglePause()">Pause</button>
+  <a class="header-btn" href="/map.html" style="text-decoration:none;">🗺 Map</a>
+  <select id="font-size-select" class="font-size-select" onchange="changeFontSize(this.value)" aria-label="UI Font Size">
+    <option value="xs">XS</option>
+    <option value="sm">Small</option>
+    <option value="default" selected>Default</option>
+    <option value="lg">Large</option>
+  </select>
+  <div class="status-indicator">
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text">Connecting...</span>
+  </div>
+</div>
+
+<!-- ─── Main Layout ─── -->
+<div class="container">
+
+  <!-- Left: Live Feed (col 1, row 1) -->
+  <div class="main-feed">
+    <div class="card">
+      <div class="card-header" style="flex-wrap:wrap;gap:4px;">
+        <h2 style="flex-shrink:0;">📨 Live Packet Feed</h2>
+        <div class="type-filter-bar" id="type-filter-bar">
+          <button class="type-filter-clear" onclick="clearTypeFilters()" title="Show all types">All</button>
+        </div>
+        <label class="digi-filter-label" title="Hide duplicate packets heard on different digipeater hops">
+          <input type="checkbox" id="hide-repeats-cb"> Hide repeats
+        </label>
+        <span class="count" id="packet-count">0</span>
+      </div>
+      <div class="card-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th title="UI=Broadcast/Beacon, UA=Ack, SABM=Connect, DISC=Disconnect, DM=Not Connected, I=Data">Type</th>
+              <th>Source</th>
+              <th></th>
+              <th>Destination</th>
+              <th>Digipeaters</th>
+              <th>Info</th>
+            </tr>
+          </thead>
+          <tbody id="packet-feed-body">
+            <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Waiting for packets...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Middle: Node Config (col 2, row 1 only) -->
+  <div class="sidebar" id="node-config-col">
+    <div class="card">
+      <div class="card-header">
+        <h2>⚙ Node Config</h2>
+        <span class="count" id="node-config-count">0</span>
+      </div>
+      <div class="card-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Nodename</th>
+              <th title="Static — never pruned/staled">Static</th>
+              <th title="High Value — orange marker on map">HV</th>
+            </tr>
+          </thead>
+          <tbody id="node-config-body">
+            <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:40px;">Loading markers...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Heard Stations (col 3, full height — rows 1-2) -->
+  <div class="sidebar" id="heard-col">
+    <div class="card">
+      <div class="card-header">
+        <h2>📡 Heard Stations</h2>
+        <span class="count" id="station-count">0</span>
+      </div>
+      <div class="card-body">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortStations('callsign')">
+                Callsign <span class="sort-arrow" data-sort="callsign"> ▼</span>
+              </th>
+              <th onclick="sortStations('packets')">
+                Packets <span class="sort-arrow" data-sort="packets"></span>
+              </th>
+              <th onclick="sortStations('lastheard')">
+                Last Heard <span class="sort-arrow" data-sort="lastheard"></span>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="stations-body">
+            <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:40px;">No stations heard yet...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom row: Map + Messages (spans col 1-2, row 2) -->
+  <div class="bottom-row">
+    <div class="card">
+      <div class="card-header">
+        <h2>🗺 Active Nodes</h2>
+        <span class="count" id="mini-map-count">0</span>
+      </div>
+      <div class="card-body" style="padding:0;overflow:hidden;">
+        <div id="mini-map"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h2>💬 Messages</h2>
+        <span class="count" id="msg-count">0</span>
+      </div>
+      <div class="card-body" style="padding:16px;">
+        <div id="messages-container" style="font-family:var(--font-mono);font-size:var(--fs-sm);">
+          <div style="color:var(--text-muted);text-align:center;padding:20px;">No messages yet...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ─── Raw Packet Detail Panel ─── -->
+<div id="raw-panel">
+  <button id="raw-close" onclick="closeRawPanel()">×</button>
+  <h3>Raw Packet Details</h3>
+  <pre id="raw-content">Select a packet to view details...</pre>
+</div>
+
+<script>
+// ─── State ───
+let paused = false;
+let pauseBtn = document.getElementById('hdr-pause-btn');
+let lastPacketCount = 0;
+let startedAt = null;
+let frameStats = {};
+
+let stationData = [];
+let sortField = 'lastheard';
+let sortDir = 'desc';
+let activeTypeFilters = new Set();
+let allKnownTypes = [];
+let hideRepeats = localStorage.getItem('hermes-pkt-ui-hide-repeats') === 'true';
+let repeatKeys = new Set();
+let renderedPacketIds = new Set();
+let rawPanelTimer = null;
+
+// ─── Type Filter Control ───
+function buildTypeFilters() {
+  const bar = document.getElementById('type-filter-bar');
+  if (!bar) return;
+  bar.innerHTML = '<button class="type-filter-clear" onclick="clearTypeFilters()" title="Show all types">All</button>';
+
+  const typeColors = {
+    'UI':'var(--accent)','I':'#5dade2',
+    'RR':'#48c9b0','RNR':'#f39c12','REJ':'#e74c3c','SREJ':'#af7ac5',
+    'SABM':'var(--warning)','SABME':'var(--warning)',
+    'UA':'var(--cyan)','DISC':'var(--danger)','DM':'var(--text-muted)',
+    'FRMR':'#c0392b','XID':'#a569bd','TEST':'#7f8c8d',
+    '?0x33':'#e67e22','?0x37':'#e67e22','?0x3F':'#e67e22',
+  };
+  const types = Object.keys(frameStats).length > 0 ? Object.keys(frameStats).sort() : allKnownTypes;
+  types.forEach(type => {
+    const chip = document.createElement('span');
+    chip.className = 'type-filter-chip';
+    chip.setAttribute('data-type', type);
+    chip.textContent = type;
+    chip.style.color = typeColors[type] || (type.startsWith("?0x") ? "#e67e22" : "var(--text-secondary)");
+    chip.style.borderColor = typeColors[type] || 'var(--border)';
+    chip.onclick = () => toggleTypeFilter(type);
+    bar.appendChild(chip);
+  });
+}
+
+function toggleTypeFilter(type) {
+  if (activeTypeFilters.has(type)) {
+    activeTypeFilters.delete(type);
+  } else {
+    activeTypeFilters.add(type);
+  }
+  document.querySelectorAll('.type-filter-chip').forEach(chip => {
+    const t = chip.getAttribute('data-type');
+    chip.classList.toggle('active', activeTypeFilters.has(t));
+  });
+  fetchPackets();
+}
+
+function clearTypeFilters() {
+  activeTypeFilters.clear();
+  document.querySelectorAll('.type-filter-chip').forEach(chip => {
+    chip.classList.remove('active');
+  });
+  fetchPackets();
+}
+
+function isPacketFiltered(p) {
+  if (activeTypeFilters.size === 0) return false;
+  return !activeTypeFilters.has(p.type);
+}
+
+// ─── Font Size Control ───
+const FS_KEY = 'hermes-pkt-ui-font-size';
+
+function changeFontSize(size) {
+  document.documentElement.className = 'size-' + size;
+  localStorage.setItem(FS_KEY, size);
+}
+
+function restoreFontSize() {
+  const saved = localStorage.getItem(FS_KEY);
+  if (saved && ['xs', 'sm', 'default', 'lg'].includes(saved)) {
+    document.documentElement.className = 'size-' + saved;
+    const sel = document.getElementById('font-size-select');
+    if (sel) sel.value = saved;
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toAmPm(hhmmss) {
+  if (!hhmmss) return '—';
+  const parts = hhmmss.split(':');
+  if (parts.length < 2) return hhmmss;
+  let h = parseInt(parts[0], 10);
+  const m = parts[1];
+  const s = parts.length > 2 ? ':' + parts[2] : '';
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return h + ':' + m + s + ' ' + ampm;
+}
+
+// ─── Fetch & Update ───
+async function fetchStats() {
+  try {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+
+    const dot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    if (data.status === 'connected') {
+      dot.className = 'status-dot online';
+      statusText.textContent = 'Connected';
+    } else if (data.status && data.status.startsWith('error')) {
+      dot.className = 'status-dot error';
+      statusText.textContent = data.status;
+    } else {
+      dot.className = 'status-dot';
+      statusText.textContent = data.status || 'Unknown';
+    }
+
+    document.getElementById('hdr-total-packets').textContent = (data.total_packets || 0).toLocaleString();
+    document.getElementById('hdr-unique-stations').textContent = (data.unique_stations || 0).toLocaleString();
+    document.getElementById('hdr-active-links').textContent = (data.top_links ? data.top_links.length : 0).toLocaleString();
+
+    if (!startedAt && data.started_at) startedAt = data.started_at;
+    if (startedAt) {
+      const start = new Date(startedAt);
+      const diff = Math.floor((Date.now() - start) / 1000);
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      document.getElementById('hdr-uptime').textContent =
+        `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    }
+
+    if (data.stations) {
+      updateStations(data.stations);
+      document.getElementById('station-count').textContent = data.stations.length;
+    }
+
+    if (data.top_links) {
+      document.getElementById('mini-map-count').textContent = data.top_links.length;
+    }
+  } catch (e) {
+    document.getElementById('status-text').textContent = 'Poll error';
+  }
+}
+
+async function fetchPackets() {
+  if (paused) return;
+  try {
+    const res = await fetch('/api/packets?limit=500');
+    const packets = await res.json();
+
+    const tbody = document.getElementById('packet-feed-body');
+
+    let filtered = packets.filter(p => !isPacketFiltered(p));
+    if (hideRepeats && filtered.length > 0) {
+      const existing = filtered.filter(p => renderedPacketIds.has(p.id));
+      const newOnes = filtered.filter(p => !renderedPacketIds.has(p.id));
+      const dedupedNew = [];
+      for (const p of newOnes) {
+        const key = `${p.source}|${p.dest}|${p.info}`;
+        if (repeatKeys.has(key)) continue;
+        repeatKeys.add(key);
+        dedupedNew.push(p);
+      }
+      filtered = [...existing, ...dedupedNew];
+      if (repeatKeys.size > 2000) {
+        const arr = [...repeatKeys];
+        repeatKeys = new Set(arr.slice(-1000));
+      }
+    }
+
+    const shownCount = filtered.length;
+    document.getElementById('packet-count').textContent = packets.length === shownCount
+      ? packets.length
+      : `${shownCount} / ${packets.length}`;
+
+    if (packets.length === 0) {
+      if (lastPacketCount === 0) return;
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Waiting for packets...</td></tr>';
+      lastPacketCount = 0;
+      return;
+    }
+
+    if (shownCount === 0) {
+      lastPacketCount = Math.max(lastPacketCount, packets.length);
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">No packets match the selected filter types...</td></tr>';
+      return;
+    }
+
+    let html = '';
+    const isNew = packets.length > lastPacketCount;
+
+    const TYPE_DESC = {
+      'UI': 'Unnumbered Information — broadcast/beacon',
+      'SABM': 'Set Asynchronous Balanced Mode — connect request',
+      'UA': 'Unnumbered Acknowledgment',
+      'DISC': 'Disconnect',
+      'DM': 'Disconnected Mode — station not connected',
+      'I': 'Information — connected-mode data',
+      'RR': 'Receive Ready — flow control / ready for data',
+      'RNR': 'Receive Not Ready — busy / can\'t accept data',
+      'REJ': 'Reject — request retransmission',
+      'SREJ': 'Selective Reject — request specific frame retransmit',
+      'FRMR': 'Frame Reject — invalid frame received',
+    };
+
+    filtered.forEach((p, idx) => {
+      const typeClass = `type-${p.type}`;
+      const rowClass = (isNew && idx < 5) ? 'packet-row-new' : '';
+
+      let infoDisplay = p.info || '';
+      if (infoDisplay.length > 80) infoDisplay = infoDisplay.substring(0, 80) + '...';
+      if (!infoDisplay) infoDisplay = '—';
+
+      let digiDisplay = (p.digipeaters || '').replace(/[^\x20-\x7E,]/g, '').trim();
+      if (!digiDisplay) digiDisplay = '—';
+
+      html += `<tr class="${rowClass}" onclick="showRaw(${p.id}, this)" style="cursor:pointer;">
+        <td class="time-col">${toAmPm(p.time)}</td>
+        <td><span class="frame-type ${typeClass}" title="${TYPE_DESC[p.type] || p.type}">${p.type}</span></td>
+        <td class="callsign">${p.source}</td>
+        <td style="color:var(--text-muted);text-align:center;">→</td>
+        <td class="callsign-dest">${p.dest}</td>
+        <td class="digi-col">${digiDisplay}</td>
+        <td class="info-text" title="${escHtml(p.info || '')}">${escHtml(infoDisplay)}</td>
+      </tr>`;
+
+      if (!frameStats[p.type]) frameStats[p.type] = 0;
+      frameStats[p.type]++;
+    });
+
+    tbody.innerHTML = html;
+    lastPacketCount = packets.length;
+    renderedPacketIds = new Set(filtered.map(p => p.id));
+
+    updateMessages();
+    buildTypeFilters();
+
+    if (isNew && !paused) {
+      tbody.scrollTop = 0;
+    }
+  } catch (e) {
+    // Silent
+  }
+}
+
+function updateStations(stations) {
+  stationData = stations;
+  const tbody = document.getElementById('stations-body');
+  if (stations.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:40px;">No stations heard yet...</td></tr>';
+    return;
+  }
+
+  const sorted = [...stations].sort((a, b) => {
+    let cmp;
+    if (sortField === 'callsign') {
+      const keyA = (a.callsign + (a.ssid > 0 ? '-' + a.ssid : '')).toLowerCase();
+      const keyB = (b.callsign + (b.ssid > 0 ? '-' + b.ssid : '')).toLowerCase();
+      cmp = keyA.localeCompare(keyB);
+    } else if (sortField === 'packets') {
+      cmp = (a.packet_count || 0) - (b.packet_count || 0);
+    } else {
+      cmp = new Date(a.last_heard) - new Date(b.last_heard);
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const now = Date.now();
+  let html = '';
+  sorted.slice(0, 150).forEach(s => {
+    const lastMs = new Date(s.last_heard).getTime();
+    const active = (now - lastMs) < 300000;
+
+    html += `<tr class="${active ? 'station-active' : ''}">
+      <td class="callsign">${s.callsign}${s.ssid > 0 ? '-' + s.ssid : ''}</td>
+      <td style="font-family:var(--font-mono);color:var(--text-secondary);font-size:var(--fs-sm);">${s.packet_count}</td>
+      <td style="font-family:var(--font-mono);font-size:var(--fs-sm);color:var(--text-muted);">${new Date(s.last_heard).toLocaleTimeString()}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+
+  document.querySelectorAll('.sort-arrow').forEach(el => {
+    const field = el.dataset.sort;
+    if (field === sortField) {
+      el.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
+    } else {
+      el.textContent = '';
+    }
+  });
+}
+
+function sortStations(field) {
+  if (sortField === field) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortField = field;
+    sortDir = 'desc';
+  }
+  if (stationData.length > 0) updateStations(stationData);
+}
+
+// ─── Node Config ───
+let nodeConfigMarkers = [];
+let nodeConfigToggling = new Set();
+
+async function fetchNodeConfig() {
+  try {
+    const res = await fetch('/api/markers?_=' + Date.now());
+    const markers = await res.json();
+    nodeConfigMarkers = markers;
+
+    const tbody = document.getElementById('node-config-body');
+    document.getElementById('node-config-count').textContent = markers.length;
+
+    if (markers.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:40px;">No markers loaded...</td></tr>';
+      return;
+    }
+
+    let html = '';
+    markers.forEach(m => {
+      const nodename = escHtml(m.display_name);
+      const isStatic = m.static === 1 || m.static === true || m.static === '1';
+      const isHV = m.high_value === 1 || m.high_value === true || m.high_value === '1';
+      const rowClass = isStatic ? 'node-config-state-static' : (isHV ? 'node-config-state-high' : '');
+
+      html += `<tr class="${rowClass}">
+        <td>${nodename}</td>
+        <td class="node-config-td-check"><input type="checkbox" class="node-config-checkbox"
+          data-name="${escHtml(m.display_name)}" data-field="static"
+          ${isStatic ? 'checked' : ''}
+          onchange="toggleNodeConfigFlag(this)"></td>
+        <td class="node-config-td-check"><input type="checkbox" class="node-config-checkbox"
+          data-name="${escHtml(m.display_name)}" data-field="high_value"
+          ${isHV ? 'checked' : ''}
+          onchange="toggleNodeConfigFlag(this)"></td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  } catch (e) {
+    // Silent
+  }
+}
+
+async function toggleNodeConfigFlag(cb) {
+  const name = cb.dataset.name;
+  const field = cb.dataset.field;
+  const key = name + ':' + field;
+
+  if (nodeConfigToggling.has(key)) {
+    cb.checked = !cb.checked;
+    return;
+  }
+  nodeConfigToggling.add(key);
+
+  const value = cb.checked ? 1 : 0;
+  try {
+    const res = await fetch('/api/markers', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({display_name: name, [field]: value})
+    });
+    if (!res.ok) {
+      cb.checked = !cb.checked;
+    }
+  } catch (e) {
+    cb.checked = !cb.checked;
+  } finally {
+    nodeConfigToggling.delete(key);
+    refreshMiniMap();
+  }
+}
+
+// ─── Mini Map ───
+let miniMap = null;
+let miniMarkersLayer = null;
+
+function initMiniMap() {
+  let center = [38.58, -121.49];
+  let zoom = 7;
+  try {
+    const saved = localStorage.getItem('hermes-minimap-view');
+    if (saved) {
+      const v = JSON.parse(saved);
+      if (v.lat && v.lng && v.zoom) {
+        center = [v.lat, v.lng];
+        zoom = v.zoom;
+      }
+    }
+  } catch(e) {}
+
+  miniMap = L.map('mini-map', {
+    center: center,
+    zoom: zoom,
+    attributionControl: false,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(miniMap);
+
+  miniMarkersLayer = L.layerGroup().addTo(miniMap);
+
+  miniMap.on('moveend', function() {
+    const c = miniMap.getCenter();
+    localStorage.setItem('hermes-minimap-view', JSON.stringify({
+      lat: c.lat,
+      lng: c.lng,
+      zoom: miniMap.getZoom(),
+    }));
+  });
+}
+
+function refreshMiniMap() {
+  fetch('/api/markers')
+    .then(r => r.json())
+    .then(markers => {
+      miniMarkersLayer.clearLayers();
+      markers.forEach(m => {
+        const pin = L.marker([m.lat, m.lon], {
+          icon: L.divIcon({
+            className: '',
+            html: `<div style="display:flex;flex-direction:column;align-items:center;">
+              <svg width="14" height="20" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z" fill="#00d4aa" opacity="0.9"/>
+                <circle cx="12" cy="12" r="5" fill="#0d0d1a"/>
+              </svg>
+              <span style="color:#00d4aa;font-size:8px;font-weight:600;background:#0d0d1a;padding:0 4px;border-radius:3px;border:1px solid #2a2a50;white-space:nowrap;margin-top:-1px;">${m.display_name}</span>
+            </div>`,
+            iconSize: [16, 34],
+            iconAnchor: [8, 34],
+          })
+        });
+        miniMarkersLayer.addLayer(pin);
+      });
+    })
+    .catch(() => {});
+}
+
+initMiniMap();
+refreshMiniMap();
+
+function updateMessages() {
+  const container = document.getElementById('messages-container');
+  const countEl = document.getElementById('msg-count');
+
+  fetch('/api/mapmsg/all')
+    .then(r => r.json())
+    .then(messages => {
+      if (!messages || messages.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">No messages yet...</div>';
+        countEl.textContent = '0';
+        return;
+      }
+
+      countEl.textContent = messages.length;
+
+      let html = '';
+      messages.forEach(msg => {
+        const d = new Date(msg.created_at);
+        const mo = d.toLocaleDateString('en-US', { month: 'numeric', timeZone: 'America/Los_Angeles' });
+        const da = d.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'America/Los_Angeles' });
+        const ti = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles', hour12: false });
+        const t = mo + '/' + da + ' ' + ti;
+        const pinClass = msg.pinned ? 'pinned' : '';
+        html += '<div class="msg-row' + (pinClass ? ' pinned' : '') + '">' +
+          '<span class="msg-pin-btn ' + pinClass + '" data-pin-id="' + msg.id + '">📌</span>' +
+          '<span style="color:var(--text-muted);">' + escHtml(t) + '</span>' +
+          '<span style="color:var(--accent);margin:0 8px;">' + escHtml(msg.source) + '</span>' +
+          escHtml(msg.message) +
+        '</div>';
+      });
+      container.innerHTML = html;
+    })
+    .catch(() => {
+      container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">Unable to load messages</div>';
+    });
+}
+
+// Pin toggle via event delegation
+document.getElementById('messages-container').addEventListener('click', function(e) {
+  const btn = e.target.closest('.msg-pin-btn');
+  if (!btn) return;
+  const id = parseInt(btn.dataset.pinId, 10);
+  const wasPinned = btn.classList.contains('pinned');
+  fetch('/api/mapmsg/pin', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: id, pinned: !wasPinned})
+  }).then(r => r.json()).then(() => {
+    updateMessages();
+  }).catch(() => {});
+});
+
+// ─── Raw Packet Detail ───
+async function showRaw(packetId, row) {
+  try {
+    const res = await fetch(`/api/packets?limit=500`);
+    const packets = await res.json();
+    const p = packets.find(x => x.id === packetId);
+    if (!p) return;
+
+    document.querySelectorAll('#packet-feed-body tr').forEach(r => r.style.background = '');
+    if (row) row.style.background = 'var(--bg-hover)';
+
+    const rawContent = document.getElementById('raw-content');
+    if (p.raw_text) {
+      rawContent.textContent = p.raw_text;
+    } else {
+      rawContent.textContent = JSON.stringify({
+        id: p.id,
+        time: p.time,
+        source: p.source,
+        destination: p.dest,
+        frame_type: p.type,
+        digipeaters: p.digipeaters || '(none)',
+        info: p.info || '(empty)',
+      }, null, 2);
+    }
+
+    document.getElementById('raw-panel').classList.add('open');
+
+    if (rawPanelTimer) clearTimeout(rawPanelTimer);
+    rawPanelTimer = setTimeout(closeRawPanel, 10000);
+  } catch (e) {
+    // silent
+  }
+}
+
+function closeRawPanel() {
+  if (rawPanelTimer) { clearTimeout(rawPanelTimer); rawPanelTimer = null; }
+  document.getElementById('raw-panel').classList.remove('open');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('raw-panel').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeRawPanel();
+  });
+  const repCb = document.getElementById('hide-repeats-cb');
+  if (repCb) {
+    repCb.checked = hideRepeats;
+    repCb.addEventListener('change', function() {
+      hideRepeats = this.checked;
+      localStorage.setItem('hermes-pkt-ui-hide-repeats', hideRepeats);
+      if (hideRepeats) {
+        repeatKeys = new Set();
+        renderedPacketIds = new Set();
+      } else {
+        repeatKeys = new Set();
+        renderedPacketIds = new Set();
+      }
+      fetchPackets();
+    });
+  }
+});
+
+// ─── Pause / Resume ───
+function togglePause() {
+  paused = !paused;
+  pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+  pauseBtn.classList.toggle('paused', paused);
+  if (!paused) fetchPackets();
+}
+
+// ─── Poll Loop ───
+function poll() {
+  fetchStats();
+  fetchPackets();
+  refreshMiniMap();
+  fetchNodeConfig();
+}
+
+// Initial load
+fetchStats();
+fetchPackets();
+fetchNodeConfig();
+restoreFontSize();
+buildTypeFilters();
+
+setInterval(poll, 2000);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeRawPanel();
+});
+
+// ─── Column Resizer ───
+(function() {
+  const TABLE = document.querySelector('.main-feed table');
+  if (!TABLE) return;
+  const STORAGE_KEY = 'hermes-pkt-col-widths';
+
+  function restoreWidths() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      const widths = JSON.parse(saved);
+      const ths = TABLE.querySelectorAll('thead th');
+      if (widths.length !== ths.length) return;
+      ths.forEach((th, i) => {
+        th.style.width = widths[i] + 'px';
+        th.style.minWidth = widths[i] + 'px';
+      });
+      TABLE.querySelectorAll('tbody tr').forEach(tr => {
+        tr.querySelectorAll('td').forEach((td, i) => {
+          if (i < widths.length) {
+            td.style.width = widths[i] + 'px';
+            td.style.minWidth = widths[i] + 'px';
+          }
+        });
+      });
+    } catch(e) {}
+  }
+
+  function saveWidths() {
+    const widths = [];
+    TABLE.querySelectorAll('thead th').forEach(th => {
+      widths.push(th.offsetWidth);
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(widths));
+  }
+
+  const RESIZE_HANDLE = document.createElement('div');
+  RESIZE_HANDLE.style.cssText = 'position:absolute;top:0;bottom:0;right:-3px;width:7px;cursor:col-resize;z-index:5;';
+  let currentTh = null, startX = 0, startW = 0, nextTh = null, nextStartW = 0;
+
+  document.querySelectorAll('.main-feed thead th').forEach(th => {
+    th.style.position = 'relative';
+    const handle = RESIZE_HANDLE.cloneNode();
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      currentTh = th;
+      startX = e.clientX;
+      startW = th.offsetWidth;
+      const siblings = Array.from(th.parentElement.children);
+      const idx = siblings.indexOf(th);
+      nextTh = idx < siblings.length - 1 ? siblings[idx + 1] : null;
+      nextStartW = nextTh ? nextTh.offsetWidth : 0;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+    th.appendChild(handle);
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!currentTh) return;
+    const diff = e.clientX - startX;
+    const newW = Math.max(40, startW + diff);
+    const colIdx = Array.from(currentTh.parentElement.children).indexOf(currentTh);
+    const table = currentTh.closest('table');
+
+    currentTh.style.width = newW + 'px';
+    currentTh.style.minWidth = newW + 'px';
+    table.querySelectorAll('tbody tr').forEach(tr => {
+      const td = tr.children[colIdx];
+      if (td) { td.style.width = newW + 'px'; td.style.minWidth = newW + 'px'; }
+    });
+
+    if (nextTh) {
+      const nextW = Math.max(40, nextStartW - diff);
+      nextTh.style.width = nextW + 'px';
+      nextTh.style.minWidth = nextW + 'px';
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        const td = tr.children[colIdx + 1];
+        if (td) { td.style.width = nextW + 'px'; td.style.minWidth = nextW + 'px'; }
+      });
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (currentTh) {
+      saveWidths();
+      currentTh = null; nextTh = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+
+  setTimeout(restoreWidths, 0);
+})();
+</script>
+</body>
+</html>

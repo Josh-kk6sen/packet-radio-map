@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>145.050 Packet Radio Network</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300d4aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.9 16.1C3.2 14.3 2.5 12 2.5 10c0-5.5 4.5-10 10-10s10 4.5 10 10c0 2-.7 4.3-2.4 6.1'/%3E%3Cpath d='M7.5 13.5c-1-1-1.5-2.3-1.5-3.5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 1.2-.5 2.5-1.5 3.5'/%3E%3Cline x1='12' y1='10' x2='12' y2='22'/%3E%3Cline x1='8' y1='22' x2='16' y2='22'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg-primary: #0d0d1a;
+    --bg-secondary: #131328;
+    --bg-card: #1a1a35;
+    --bg-card-hover: #222244;
+    --border: #2a2a50;
+    --text-primary: #e0e0f0;
+    --text-secondary: #8888aa;
+    --text-muted: #555577;
+    --accent: #00d4aa;
+    --accent-dim: #00a080;
+    --danger: #ff5252;
+    --warning: #ff9800;
+    --inactive: #555577;
+    --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    --radius: 8px;
+    --panel-w: 320px;
+    --status-h: 28px;
+    --header-h: 48px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: var(--status-h);
+  }
+
+  .header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    height: var(--header-h);
+  }
+
+  .header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.3px;
+  }
+
+  .header h1 { display: flex; align-items: center; gap: 6px; }
+  .header h1::before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300d4aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.9 16.1C3.2 14.3 2.5 12 2.5 10c0-5.5 4.5-10 10-10s10 4.5 10 10c0 2-.7 4.3-2.4 6.1'/%3E%3Cpath d='M7.5 13.5c-1-1-1.5-2.3-1.5-3.5 0-3.3 2.7-6 6-6s6 2.7 6 6c0 1.2-.5 2.5-1.5 3.5'/%3E%3Cline x1='12' y1='10' x2='12' y2='22'/%3E%3Cline x1='8' y1='22' x2='16' y2='22'/%3E%3C/svg%3E") center/contain no-repeat;
+    flex-shrink: 0;
+  }
+
+  .header-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+
+  .header-btn {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  #howto-btn {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 14px;
+    padding: 7px 20px;
+    font-weight: 600;
+    background: var(--bg-card);
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    letter-spacing: 0.3px;
+  }
+  .header-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    font-family: var(--font-mono);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+  }
+
+  .marker-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  .marker-count .num {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ─── Map container ─── */
+  #map {
+    flex: 1;
+    width: 100%;
+    background: var(--bg-primary);
+  }
+
+  .leaflet-container {
+    background: #0d0d1a !important;
+    font-family: var(--font-mono);
+  }
+  .leaflet-control-zoom a {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+  }
+  .leaflet-control-zoom a:hover {
+    background: var(--bg-card-hover) !important;
+  }
+  .leaflet-popup-content-wrapper {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+  }
+  .leaflet-popup-tip {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border) !important;
+  }
+  .leaflet-popup-content {
+    margin: 10px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .popup-call {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .popup-label {
+    color: var(--text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .popup-value {
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .popup-flag {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+    display: inline-block;
+    border: 1px solid;
+  }
+  .flag-static {
+    color: #4488ff;
+    border-color: #4488ff;
+    background: rgba(68, 136, 255, 0.12);
+  }
+  .flag-hv {
+    color: #ff9800;
+    border-color: #ff9800;
+    background: rgba(255, 152, 0, 0.12);
+  }
+
+  /* ─── Slide-out Panel ─── */
+  .panel-wrap {
+    position: fixed;
+    top: var(--header-h);
+    left: 0;
+    bottom: var(--status-h);
+    width: var(--panel-w);
+    z-index: 10000;
+    display: flex;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(-100%);
+  }
+  .panel-wrap.open {
+    transform: translateX(0);
+  }
+
+  .panel-inner {
+    flex: 1;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Toggle arrow — sits on the RIGHT edge of the panel */
+  .panel-toggle {
+    position: absolute;
+    right: -24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 48px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-left: none;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    color: var(--text-secondary);
+    font-size: 12px;
+    user-select: none;
+    transition: color 0.2s, background 0.2s;
+    z-index: 1;
+  }
+  .panel-toggle:hover {
+    color: var(--accent);
+    background: var(--bg-card);
+  }
+
+  .panel-inner::-webkit-scrollbar {
+    width: 4px;
+  }
+  .panel-inner::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .panel-inner::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+  }
+
+  .panel-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .panel-header .counts {
+    color: var(--text-secondary);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .panel-header .counts .ac {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .panel-header .counts .gray {
+    color: var(--inactive);
+  }
+
+  .node-section-title {
+    padding: 6px 14px;
+    font-size: 9px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .node-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .node-item {
+    display: flex;
+    align-items: center;
+    padding: 7px 14px;
+    gap: 8px;
+    border-bottom: 1px solid rgba(42,42,80,0.4);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .node-item:hover {
+    background: var(--bg-card);
+  }
+
+  .node-item .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .node-item.active .dot {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+  }
+  .node-item.inactive .name {
+    color: #d0d0e8;
+  }
+  .node-item.inactive .call,
+  .node-item.inactive .ago {
+    color: #b0b0cc;
+  }
+  .node-item.inactive .dot {
+    background: var(--inactive);
+  }
+
+  .node-item .info {
+    flex: 1;
+    min-width: 0;
+  }
+  .node-item .name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+  }
+  .node-item .call {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+  .node-item .ago {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-align: right;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .node-item.active .ago {
+    color: var(--accent-dim);
+  }
+  .node-item .static-ago {
+    color: var(--accent);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.3px;
+  }
+  .node-item.active .name {
+    color: var(--accent);
+  }
+  .node-item .name.name-high-value,
+  .node-item.active .name.name-high-value,
+  .node-item.inactive .name.name-high-value {
+    color: var(--warning);
+  }
+
+  .empty-state {
+    padding: 20px 14px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: var(--font-mono);
+  }
+
+  /* ─── Right Panel (Heard Nodes) ─── */
+  .panel-wrap-right {
+    position: fixed;
+    top: var(--header-h);
+    right: 0;
+    bottom: var(--status-h);
+    width: var(--panel-w);
+    z-index: 9999;
+    display: flex;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(100%);
+  }
+  .panel-wrap-right.open {
+    transform: translateX(0);
+  }
+  .panel-wrap-right .panel-inner {
+    flex: 1;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-wrap-right .panel-toggle {
+    position: absolute;
+    left: -24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 48px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: var(--radius) 0 0 var(--radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    color: var(--text-secondary);
+    font-size: 12px;
+    user-select: none;
+    transition: color 0.2s, background 0.2s;
+    z-index: 1;
+  }
+  .panel-wrap-right .panel-toggle:hover {
+    color: var(--accent);
+    background: var(--bg-card);
+  }
+  .panel-wrap-right .panel-inner::-webkit-scrollbar {
+    width: 4px;
+  }
+  .panel-wrap-right .panel-inner::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .panel-wrap-right .panel-inner::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+  }
+  .heard-item {
+    display: flex;
+    align-items: center;
+    padding: 7px 14px;
+    gap: 8px;
+    border-bottom: 1px solid rgba(42,42,80,0.4);
+    cursor: default;
+    transition: background 0.15s;
+  }
+  .heard-item:hover {
+    background: var(--bg-card);
+  }
+  .heard-item .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--text-muted);
+    box-shadow: 0 0 4px var(--text-muted);
+  }
+  .heard-item .info {
+    flex: 1;
+    min-width: 0;
+  }
+  .heard-item .call {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+  }
+  .heard-item .via {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .heard-item .ago {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-align: right;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* ─── Status Bar ─── */
+  .status-bar {
+    padding: 6px 20px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+    height: var(--status-h);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10002;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    display: inline-block;
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  .status-dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent-dim); }
+  .status-dot.error { background: var(--warning); }
+  .status-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+  }
+  #zoom-level {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ─── Status Bar Toggles ─── */
+  .toggle-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .toggle-wrap input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 26px;
+    height: 14px;
+    background: #333355;
+    border-radius: 7px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-wrap input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 10px;
+    height: 10px;
+    background: #8888aa;
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle-wrap input[type="checkbox"]:checked {
+    background: #00d4aa;
+  }
+  .toggle-wrap input[type="checkbox"]:checked::after {
+    transform: translateX(12px);
+    background: #0d0d1a;
+  }
+  .toggle-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+
+  /* ─── Search Control ─── */
+  .leaflet-control-search {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    padding: 4px !important;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+  }
+  .leaflet-control-search input {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 8px;
+    width: 160px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .leaflet-control-search input:focus {
+    border-color: var(--accent-dim);
+  }
+  .leaflet-control-search input::placeholder {
+    color: var(--text-muted);
+  }
+  .leaflet-control-search .search-icon {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 0 2px;
+    user-select: none;
+  }
+  .leaflet-control-search .search-clear {
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 4px;
+    user-select: none;
+    display: none;
+  }
+  .leaflet-control-search .search-clear:hover {
+    color: var(--accent);
+  }
+  .leaflet-control-search .search-count {
+    color: var(--text-muted);
+    font-size: 10px;
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    display: none;
+  }
+
+  /* When right panel is open, shift Leaflet right controls left by panel width */
+  body.right-panel-open .leaflet-top.leaflet-right {
+    right: var(--panel-w) !important;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+/* How To Modal */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.modal-box h2 {
+  color: var(--accent);
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+.modal-box h3 {
+  color: var(--text-primary);
+  font-size: 13px;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.modal-box p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+.modal-box code {
+  background: var(--bg-card);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.modal-box .tag-box {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 10px 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  text-align: center;
+  letter-spacing: 0.5px;
+  word-break: break-all;
+}
+.modal-box .email-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.modal-box .email-link:hover { text-decoration: underline; }
+.modal-close {
+  float: right;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.modal-close:hover {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+/* Dark scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+/* Custom scrollbar for modal */
+.modal-box::-webkit-scrollbar {
+  width: 6px;
+}
+.modal-box {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--bg-primary);
+}
+
+  /* ─── Bottom Slide-up Panel → Messages ─── */
+  .bottom-panel-wrap {
+    position: fixed;
+    bottom: var(--status-h);
+    left: 25%;
+    width: 50%;
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(calc(100% - 28px));
+    max-height: 57vh;
+    height: 57vh;
+  }
+  .bottom-panel-wrap.open {
+    transform: translateY(0);
+  }
+
+  .bottom-panel-toggle {
+    height: 28px;
+    width: auto;
+    align-self: center;
+    padding: 0 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    user-select: none;
+    transition: color 0.2s, background 0.2s;
+    gap: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .bottom-panel-toggle:hover {
+    color: var(--accent);
+    background: var(--bg-card);
+  }
+
+  .bottom-panel-inner {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: calc(57vh - 28px);
+    flex: 1;
+    min-height: 0;
+  }
+  .bottom-panel-inner .bottom-panel-header {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .bottom-panel-inner .bottom-msg-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) var(--bg-primary);
+  }
+  .bottom-panel-wrap .msg-item.pinned {
+    border-left: 3px solid #ffcc00;
+    background: rgba(255,204,0,0.08);
+  }
+  .bottom-panel-footer {
+    padding: 6px 16px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .bottom-msg-list .msg-item {
+    padding: 6px 16px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+    line-height: 1.4;
+  }
+  .bottom-msg-list .msg-item:last-child {
+    border-bottom: none;
+  }
+  .bottom-msg-list .msg-item .msg-time {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-right: 8px;
+  }
+  .bottom-msg-list .msg-item .msg-source {
+    color: #4fc3f7;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .bottom-msg-list .msg-empty {
+    padding: 20px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-family: var(--font-mono);
+  }
+
+  @keyframes msg-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--accent-dim); }
+    50% { opacity: 0.4; box-shadow: 0 0 8px var(--accent); }
+  }
+
+  .msg-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+    flex-shrink: 0;
+    animation: msg-pulse 2s ease-in-out infinite;
+  }
+
+  /* ─── Packet Animation ─── */
+  .packet-pulse * {
+    transition: none !important;
+    animation: none !important;
+  }
+  .packet-pulse {
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+
+  /* ─── Mobile Title ─── */
+  .h1-mobile { display: none; flex-direction: column; line-height: 1.2; }
+  .h1-freq { font-size: 18px; font-weight: 600; color: var(--accent); letter-spacing: -0.3px; }
+  .h1-sub { font-size: 9px; color: var(--text-muted); font-weight: 400; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  @media (min-width: 769px) {
+    .header-center {
+      display: contents;
+    }
+  }
+
+  /* ─── Mobile Responsive ─── */
+  @media (max-width: 768px) {
+    .h1-full { display: none; }
+    .h1-mobile { display: inline-flex; align-items: flex-start; }
+
+    .header {
+      height: auto;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      position: relative;
+    }
+
+    /* Center group: TEST + How To */
+    .header-center {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 1;
+    }
+
+    .header h1 {
+      flex: 0 1 auto;
+      justify-content: flex-start;
+      gap: 0;
+    }
+
+    #howto-btn {
+      position: static;
+      transform: none;
+      font-size: 10px;
+      padding: 3px 10px;
+      font-weight: 500;
+    }
+
+    .header-right {
+      flex: 0 0 auto;
+      flex-direction: column-reverse;
+      align-items: flex-end;
+      gap: 1px;
+      margin-left: auto;
+    }
+
+    .marker-count { font-size: 9px; padding: 1px 5px; }
+    .status-indicator { font-size: 9px; gap: 3px; }
+    .status-dot { width: 5px; height: 5px; }
+
+    .bottom-panel-wrap {
+      left: 5%;
+      width: 90%;
+      bottom: 20px;
+    }
+
+    .bottom-panel-toggle { font-size: 9px; height: 24px; padding: 0 10px; }
+    .bottom-panel-inner .bottom-panel-header { font-size: 9px; padding: 6px 10px; flex-wrap: wrap; gap: 4px; }
+    .bottom-msg-list .msg-item { font-size: 10px; padding: 4px 10px; }
+  }
+
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>
+    <span class="h1-full">145.050 Packet Radio Network</span>
+    <span class="h1-mobile">
+      <span class="h1-freq">145.050</span>
+      <span class="h1-sub">network map</span>
+    </span>
+  </h1>
+  <div class="header-center">
+    <button class="header-btn" id="howto-btn">❓ How to</button>
+  </div>
+  <div class="header-right">
+    <div class="status-indicator">
+      <span class="status-dot" id="conn-dot"></span>
+      <span id="conn-text">Connecting...</span>
+    </div>
+    <span class="marker-count">📍 <span class="num" id="marker-count">0</span> Active</span>
+  </div>
+</div>
+
+
+<!-- Map -->
+<div id="map"></div>
+
+<!-- Slide-out Panel -->
+<div class="panel-wrap" id="panel-wrap">
+  <div class="panel-inner">
+    <div class="panel-header">
+      <span>Map Nodes</span>
+      <span class="counts"><span class="ac" id="active-count">0</span> <span class="gray">·</span> <span class="gray" id="stale-count">0</span> stale <span class="gray">·</span> <span class="gray" id="offline-count">0</span> offline</span>
+    </div>
+    <div class="node-list" id="node-list"></div>
+  </div>
+  <div class="panel-toggle" id="panel-toggle">▶</div>
+</div>
+
+<!-- Right Panel: Heard Nodes -->
+<div class="panel-wrap-right" id="panel-wrap-right">
+  <div class="panel-toggle" id="panel-toggle-right">◀</div>
+  <div class="panel-inner">
+    <div class="panel-header">
+      <span>Heard Only</span>
+      <span class="counts"><span class="ac" id="heard-count">0</span></span>
+    </div>
+    <div class="node-list" id="heard-list"></div>
+  </div>
+</div>
+
+<!-- Status Bar -->
+<div class="status-bar">
+  <span id="status-text">Loading...</span>
+  <div class="status-right">
+    <label class="toggle-wrap" id="toggle-names-wrap" title="Show/hide marker names and labels">
+      <input type="checkbox" id="toggle-names" checked>
+      <span class="toggle-label">Names</span>
+    </label>
+    <label class="toggle-wrap" id="toggle-anim-wrap" title="Enable/disable animated packet paths">
+      <input type="checkbox" id="toggle-anim" checked>
+      <span class="toggle-label">Paths</span>
+    </label>
+    <span id="refresh-info">Auto-refresh every 30s</span>
+    <span id="zoom-info" style="margin-left:12px;">Zoom: <span id="zoom-level">8</span></span>
+  </div>
+</div>
+
+<!-- Bottom Slide-up Panel → Messages -->
+<div class="bottom-panel-wrap" id="bottom-panel-wrap">
+  <div class="bottom-panel-toggle" id="bottom-panel-toggle">▲ Messages <span class="msg-pulse-dot"></span></div>
+  <div class="bottom-panel-inner">
+    <div class="bottom-panel-header">
+      <span>Messages</span>
+      <span><span style="color:var(--text-primary);font-size:13px;font-weight:normal;font-family:var(--font-mono);text-transform:none;letter-spacing:0;">send packet string </span><span style="color:var(--accent);font-size:13px;font-weight:normal;font-family:var(--font-mono);text-transform:none;letter-spacing:0;">&lt;MAPMSG:Your message here&gt;</span></span>
+      <span class="counts"><span class="num" id="msg-count">0</span> msgs</span>
+    </div>
+    <div class="bottom-msg-list" id="msg-list"></div>
+    <div class="bottom-panel-footer">Showing messages from the last 3 days.</div>
+  </div>
+</div>
+
+<script>
+// ─── Persist map view via localStorage ───
+const STORAGE_KEY = 'packet-map-view';
+let savedView = null;
+try {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) savedView = JSON.parse(raw);
+} catch (e) { /* ignore corrupt data */ }
+
+const map = L.map('map', {
+  center: savedView ? [savedView.lat, savedView.lng] : [38.58, -121.49],
+  zoom: savedView ? savedView.zoom : 8,
+  zoomControl: true,
+  attributionControl: false,
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors',
+}).addTo(map);
+
+// Update zoom level display
+var updateZoomDisplay = function() {
+  document.getElementById('zoom-level').textContent = map.getZoom();
+};
+map.on('zoomend', updateZoomDisplay);
+updateZoomDisplay(); // set initial value (restored from localStorage or default)
+
+// Save map position/zoom on any move (drag, zoom, setView)
+map.on('moveend', function() {
+  const c = map.getCenter();
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      lat: parseFloat(c.lat.toFixed(5)),
+      lng: parseFloat(c.lng.toFixed(5)),
+      zoom: map.getZoom()
+    }));
+  } catch (e) { /* storage full, silently ignore */ }
+});
+
+let markersLayer = L.layerGroup().addTo(map);
+
+// Store marker references for search filtering
+let allMarkerData = []; // { marker, display_name, callsign, lat, lon }
+let currentSearchQuery = '';
+let defaultCenter = [38.58, -121.49];
+let defaultZoom = 8;
+let cachedMarkers = null;
+
+// ─── Toggle State (persisted in localStorage) ───
+let showLabels = localStorage.getItem('mapShowLabels') !== 'false';
+let showAnimations = localStorage.getItem('mapShowAnimations') !== 'false';
+let animInterval = null;
+// Sync checkbox states from localStorage
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('toggle-names').checked = showLabels;
+  document.getElementById('toggle-anim').checked = showAnimations;
+});
+
+// ─── Panel Toggle ───
+const panelWrap = document.getElementById('panel-wrap');
+const panelToggle = document.getElementById('panel-toggle');
+let panelOpen = false;
+
+panelToggle.addEventListener('click', function() {
+  panelOpen = !panelOpen;
+  panelWrap.classList.toggle('open', panelOpen);
+  panelToggle.textContent = panelOpen ? '◀' : '▶';
+});
+
+// ─── Right Panel Toggle ───
+const rightPanelWrap = document.getElementById('panel-wrap-right');
+const rightPanelToggle = document.getElementById('panel-toggle-right');
+let rightPanelOpen = false;
+
+rightPanelToggle.addEventListener('click', function() {
+  rightPanelOpen = !rightPanelOpen;
+  rightPanelWrap.classList.toggle('open', rightPanelOpen);
+  document.body.classList.toggle('right-panel-open', rightPanelOpen);
+  rightPanelToggle.textContent = rightPanelOpen ? '▶' : '◀';
+});
+
+// ─── Bottom Panel Toggle ───
+const bottomPanelWrap = document.getElementById('bottom-panel-wrap');
+const bottomPanelToggle = document.getElementById('bottom-panel-toggle');
+let bottomPanelOpen = false;
+
+bottomPanelToggle.addEventListener('click', function() {
+  bottomPanelOpen = !bottomPanelOpen;
+  bottomPanelWrap.classList.toggle('open', bottomPanelOpen);
+  bottomPanelToggle.innerHTML = bottomPanelOpen ? '▼ Messages <span class="msg-pulse-dot"></span>' : '▲ Messages <span class="msg-pulse-dot"></span>';
+});
+
+// ─── Relative Time ───
+function timeAgo(isoDate) {
+  if (!isoDate) return 'unknown';
+  const then = new Date(isoDate);
+  if (isNaN(then)) return 'unknown';
+  const now = new Date();
+  const diffMs = now - then;
+  if (diffMs < 0) return 'just now';
+  const diffMin = Math.floor(diffMs / 60000);
+
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return diffMin + 'm ago';
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return diffHr + 'h ago';
+  const diffD = Math.floor(diffHr / 24);
+  if (diffD < 7) return diffD + 'd ago';
+  const diffW = Math.floor(diffD / 7);
+  const remD = diffD % 7;
+  if (diffW < 5) {
+    if (remD > 0) return diffW + 'w ' + remD + 'd ago';
+    return diffW + 'w ago';
+  }
+  const diffMo = Math.floor(diffD / 30);
+  if (diffMo < 12) return diffMo + 'mo ago';
+  return '>1y ago';
+}
+
+const ONE_DAY = 7 * 24 * 60 * 60 * 1000;
+const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000;
+
+function isRecent(isoDate) {
+  const then = new Date(isoDate);
+  const now = new Date();
+  return (now - then) < ONE_DAY;
+}
+
+function isStale(isoDate) {
+  const then = new Date(isoDate);
+  const now = new Date();
+  return (now - then) >= ONE_DAY && (now - then) < TWO_WEEKS;
+}
+
+function isExpired(isoDate) {
+  const then = new Date(isoDate);
+  const now = new Date();
+  return (now - then) >= TWO_WEEKS;
+}
+
+function buildNodeList(markers) {
+  // Check if a marker is static
+  const isStaticNode = m => m.static === 1 || m.static === true || m.static === '1';
+
+  const recent = markers.filter(m => isStaticNode(m) || isRecent(m.last_seen));
+  const stale = markers.filter(m => !isStaticNode(m) && isStale(m.last_seen) && !isExpired(m.last_seen));
+  const offline = markers.filter(m => !isStaticNode(m) && isExpired(m.last_seen));
+
+  document.getElementById('active-count').textContent = recent.length;
+  document.getElementById('stale-count').textContent = stale.length;
+  document.getElementById('offline-count').textContent = offline.length;
+
+  const list = document.getElementById('node-list');
+  list.innerHTML = '';
+
+  if (markers.length === 0) {
+    list.innerHTML = '<div class="empty-state">No nodes heard yet.</div>';
+    return;
+  }
+
+  // Active section (static nodes sorted to top with ∞)
+  if (recent.length > 0) {
+    const hdr = document.createElement('div');
+    hdr.className = 'node-section-title';
+    hdr.textContent = 'ACTIVE (last 7d)';
+    list.appendChild(hdr);
+
+    recent.sort((a, b) => b.last_seen.localeCompare(a.last_seen));
+
+    recent.forEach(m => {
+      const callDisplay = m.callsign + (m.ssid > 0 ? '-' + m.ssid : '');
+      const item = document.createElement('div');
+      item.className = 'node-item active';
+      const agoText = isStaticNode(m) ? 'S ' + timeAgo(m.last_seen) : timeAgo(m.last_seen);
+      const agoClass = isStaticNode(m) ? 'ago static-ago' : 'ago';
+      item.innerHTML = `
+        <span class="dot"></span>
+        <div class="info">
+          <div class="name${m.high_value ? ' name-high-value' : ''}">${m.display_name}</div>
+          <div class="call">${callDisplay}</div>
+        </div>
+        <span class="${agoClass}">${agoText}</span>
+      `;
+      item.addEventListener('click', function() {
+        map.setView([m.lat, m.lon], 12);
+      });
+      list.appendChild(item);
+    });
+  }
+
+  // Stale section
+  if (stale.length > 0) {
+    const hdr = document.createElement('div');
+    hdr.className = 'node-section-title';
+    hdr.textContent = 'STALE (7d–2w)';
+    list.appendChild(hdr);
+
+    stale.sort((a, b) => b.last_seen.localeCompare(a.last_seen));
+
+    stale.forEach(m => {
+      const callDisplay = m.callsign + (m.ssid > 0 ? '-' + m.ssid : '');
+      const item = document.createElement('div');
+      item.className = 'node-item inactive';
+      item.innerHTML = `
+        <span class="dot"></span>
+        <div class="info">
+          <div class="name${m.high_value ? ' name-high-value' : ''}">${m.display_name}</div>
+          <div class="call">${callDisplay}</div>
+        </div>
+        <span class="ago">${timeAgo(m.last_seen)}</span>
+      `;
+      item.addEventListener('click', function() {
+        map.setView([m.lat, m.lon], 12);
+      });
+      list.appendChild(item);
+    });
+  }
+
+  // Offline section
+  if (offline.length > 0) {
+    const hdr = document.createElement('div');
+    hdr.className = 'node-section-title';
+    hdr.textContent = 'OFFLINE (not heard in 2w+)';
+    list.appendChild(hdr);
+
+    offline.sort((a, b) => b.last_seen.localeCompare(a.last_seen));
+
+    offline.forEach(m => {
+      const callDisplay = m.callsign + (m.ssid > 0 ? '-' + m.ssid : '');
+      const item = document.createElement('div');
+      item.className = 'node-item inactive';
+      item.innerHTML = `
+        <span class="dot"></span>
+        <div class="info">
+          <div class="name${m.high_value ? ' name-high-value' : ''}">${m.display_name}</div>
+          <div class="call">${callDisplay}</div>
+        </div>
+        <span class="ago">${timeAgo(m.last_seen)}</span>
+      `;
+      item.addEventListener('click', function() {
+        map.setView([m.lat, m.lon], 12);
+      });
+      list.appendChild(item);
+    });
+  }
+}
+
+// ─── Search control ───
+const SearchControl = L.Control.extend({
+  onAdd: function(map) {
+    const container = L.DomUtil.create('div', 'leaflet-control-search');
+    container.innerHTML = `
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Find node..." id="node-search-input" />
+      <span class="search-clear" id="search-clear">✕</span>
+      <span class="search-count" id="search-count"></span>
+    `;
+    L.DomEvent.disableClickPropagation(container);
+
+    const input = container.querySelector('#node-search-input');
+    const clear = container.querySelector('#search-clear');
+    const count = container.querySelector('#search-count');
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      currentSearchQuery = this.value.trim().toLowerCase();
+      const q = currentSearchQuery;
+
+      if (!q) {
+        clear.style.display = 'none';
+        count.style.display = 'none';
+        map.setView(defaultCenter, defaultZoom);
+        return;
+      }
+
+      clear.style.display = 'inline';
+
+      // Find first match and zoom to it — all nodes stay visible
+      let firstMatch = null;
+      let matchCount = 0;
+      allMarkerData.forEach(d => {
+        const name = (d.display_name || '').toLowerCase();
+        const call = (d.callsign || '').toLowerCase();
+        if (name.includes(q) || call.includes(q)) {
+          if (!firstMatch) firstMatch = d;
+          matchCount++;
+        }
+      });
+
+      if (firstMatch) {
+        map.setView([firstMatch.lat, firstMatch.lon], 10);
+        count.textContent = `${matchCount}`;
+        count.style.display = 'inline';
+      } else {
+        count.textContent = '0';
+        count.style.display = 'inline';
+      }
+    });
+
+    clear.addEventListener('click', function() {
+      input.value = '';
+      currentSearchQuery = '';
+      clear.style.display = 'none';
+      count.style.display = 'none';
+      map.setView(defaultCenter, defaultZoom);
+      input.focus();
+    });
+
+    return container;
+  }
+});
+new SearchControl({ position: 'topright' }).addTo(map);
+
+// ─── Marker icon ───
+function makeMapIcon(name, color) {
+  const fill = color || '#00d4aa';
+  const textColor = color || '#00d4aa';
+  return L.divIcon({
+    className: '',
+    html: `<div style="display:flex;flex-direction:column;align-items:center;">
+      <svg width="18" height="27" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z" fill="${fill}" opacity="0.9"/>
+        <circle cx="12" cy="12" r="5" fill="#0d0d1a"/>
+      </svg>
+      <span style="color:${textColor};font-family:'SF Mono','Fira Code',monospace;font-size:10px;font-weight:600;background:#0d0d1a;padding:1px 5px;border-radius:4px;border:1px solid #2a2a50;white-space:nowrap;margin-top:-2px;">${name}</span>
+    </div>`,
+    iconSize: [20, 44],
+    iconAnchor: [10, 44],
+    popupAnchor: [0, -46],
+  });
+}
+
+// ─── Connection Status ───
+async function checkConnection() {
+  try {
+    const res = await fetch('/api/stats?_=' + Date.now());
+    const data = await res.json();
+    const dot = document.getElementById('conn-dot');
+    const text = document.getElementById('conn-text');
+    if (data.status === 'connected') {
+      dot.className = 'status-dot online';
+      text.textContent = 'Online';
+      text.style.color = 'var(--accent)';
+    } else if (data.status && data.status.startsWith('error')) {
+      dot.className = 'status-dot error';
+      text.textContent = 'Disconnected';
+      text.style.color = 'var(--warning)';
+    } else {
+      dot.className = 'status-dot error';
+      text.textContent = data.status || 'Unknown';
+      text.style.color = 'var(--warning)';
+    }
+  } catch (e) {
+    const dot = document.getElementById('conn-dot');
+    const text = document.getElementById('conn-text');
+    dot.className = 'status-dot error';
+    text.textContent = 'Offline';
+    text.style.color = 'var(--danger)';
+  }
+}
+
+// ─── Fetch Markers ───
+async function fetchMarkers() {
+  try {
+    const res = await fetch('/api/markers?_=' + Date.now());
+    const markers = await res.json();
+
+    const isStatic = m => m.static === 1 || m.static === true || m.static === '1';
+    const activeCount = markers.filter(m => isRecent(m.last_seen) || isStatic(m)).length;
+    document.getElementById('marker-count').textContent = activeCount;
+    document.getElementById('status-text').textContent = `${markers.length} total node${markers.length !== 1 ? 's' : ''} (${activeCount} active)`;
+
+    // Build the node list panel
+    buildNodeList(markers);
+
+    markersLayer.clearLayers();
+    allMarkerData = [];
+
+    if (markers.length === 0) {
+      return;
+    }
+
+    // Cache raw markers for toggle re-render
+    cachedMarkers = markers;
+
+    // Show green pins for recent nodes, gray pins for stale (24h–2w), hide for expired (>2w)
+    markers.forEach(m => {
+      if (isExpired(m.last_seen) && !(m.static === 1 || m.static === true || m.static === '1')) return;
+
+      const callDisplay = m.callsign + (m.ssid > 0 ? '-' + m.ssid : '');
+      const lastSeen = new Date(m.last_seen).toLocaleTimeString();
+      const isStatic = m.static === 1 || m.static === true || m.static === '1';
+      const isHV = m.high_value === 1 || m.high_value === true || m.high_value === '1';
+      const isStaleNode = isStale(m.last_seen) && !isStatic;
+
+      // Color priority: high_value > stale > default (static doesn't change color)
+      let markerColor;
+      let flagBadge = '';
+      if (isHV) {
+        markerColor = '#ff9800';
+        flagBadge = '<span class="popup-flag flag-hv">HIGH VALUE</span>';
+      } else if (isStaleNode) {
+        markerColor = '#555577';
+      } else {
+        markerColor = '#00d4aa';
+      }
+      if (isStatic) {
+        flagBadge += '<span class="popup-flag flag-static">STATIC</span>';
+      }
+
+      // Shared popup for both modes
+      const popupContent = `
+          <div class="popup-call">${m.display_name}${flagBadge}</div>
+          <div style="margin-top:4px;">
+            <span class="popup-label">Callsign</span><br>
+            <span class="popup-value">${callDisplay}</span>
+          </div>
+          <div style="margin-top:6px;">
+            <span class="popup-label">Position</span><br>
+            <span class="popup-value">${m.lat.toFixed(4)}, ${m.lon.toFixed(4)}</span>
+          </div>
+          <div style="margin-top:6px;">
+            <span class="popup-label">Beacons</span><br>
+            <span class="popup-value">${m.packet_count}</span>
+          </div>
+          <div style="margin-top:6px;">
+            <span class="popup-label">Path</span><br>
+            <span class="popup-value">${m.last_path || '—'}</span>
+          </div>
+          <div style="margin-top:6px;">
+            <span class="popup-label">Last Heard</span><br>
+            <span class="popup-value">${lastSeen}</span>
+          </div>
+        `;
+
+      let marker;
+      if (showLabels) {
+        marker = L.marker([m.lat, m.lon], {
+          icon: makeMapIcon(m.display_name, markerColor)
+        }).bindPopup(popupContent);
+      } else {
+        const dotColor = isHV ? '#ef6c00' : isStaleNode ? '#888888' : '#43a047';
+        marker = L.circleMarker([m.lat, m.lon], {
+          radius: 5,
+          color: '#000000',
+          weight: 1,
+          fillColor: dotColor,
+          fillOpacity: 0.9,
+        }).bindPopup(popupContent);
+      }
+
+      markersLayer.addLayer(marker);
+      allMarkerData.push({
+        marker: marker,
+        display_name: m.display_name,
+        callsign: callDisplay,
+        lat: m.lat,
+        lon: m.lon,
+        static: isStatic,
+        high_value: isHV
+      });
+    });
+
+    // Re-fly to searched node after refresh
+    if (currentSearchQuery) {
+      const q = currentSearchQuery;
+      let firstMatch = null;
+      let matchCount = 0;
+      allMarkerData.forEach(d => {
+        const name = (d.display_name || '').toLowerCase();
+        const call = (d.callsign || '').toLowerCase();
+        if (name.includes(q) || call.includes(q)) {
+          if (!firstMatch) firstMatch = d;
+          matchCount++;
+        }
+      });
+      if (firstMatch) {
+        map.setView([firstMatch.lat, firstMatch.lon], 10);
+      }
+      const countEl = document.getElementById('search-count');
+      const clearEl = document.getElementById('search-clear');
+      if (countEl && clearEl) {
+        clearEl.style.display = 'inline';
+        countEl.textContent = `${matchCount}`;
+        countEl.style.display = 'inline';
+      }
+    }
+
+    // Map stays where the user left it
+  } catch (e) {
+    // If the markers API fails, keep last known node count but don't change connection status
+  }
+}
+
+// Initial load
+fetchMarkers();
+checkConnection();
+fetchMessages();
+fetchUnheardNodes();
+
+// Poll every 30 seconds
+setInterval(function() {
+  fetchMarkers();
+  checkConnection();
+  fetchMessages();
+  fetchUnheardNodes();
+}, 30000);
+
+async function fetchMessages() {
+  try {
+    const resp = await fetch('/api/mapmsg?_=' + Date.now());
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const list = document.getElementById('msg-list');
+    const count = document.getElementById('msg-count');
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      list.innerHTML = '<div class="msg-empty">No messages yet.</div>';
+      count.textContent = '0';
+      return;
+    }
+    count.textContent = data.length;
+    list.innerHTML = data.map(m => {
+      const d = new Date(m.created_at);
+      const mo = d.toLocaleDateString('en-US', { month: 'numeric', timeZone: 'America/Los_Angeles' });
+      const da = d.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'America/Los_Angeles' });
+      const ti = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles', hour12: false });
+      const t = mo + '/' + da + ' ' + ti;
+      return '<div class="msg-item' + (m.pinned ? ' pinned' : '') + '"><span class="msg-time">' + escHtml(t) + '</span>' +
+        '<span class="msg-source">' + escHtml(m.source || '') + '</span> ' +
+        (m.pinned ? '📌 ' : '') + escHtml(m.message) + '</div>';
+    }).join('');
+  } catch (e) {
+    // Backend might not have the endpoint yet
+  }
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ─── Heard-Only Nodes (callsigns in packets but not on map) ───
+async function fetchUnheardNodes() {
+  try {
+    const [pktRes, markerRes] = await Promise.all([
+      fetch('/api/packets?limit=500&_=' + Date.now()),
+      fetch('/api/markers?_=' + Date.now())
+    ]);
+    if (!pktRes.ok || !markerRes.ok) return;
+    const packets = await pktRes.json();
+    const markers = await markerRes.json();
+    if (!Array.isArray(packets) || !Array.isArray(markers)) return;
+
+    // Build known callsign set from markers (check both callsign and display_name)
+    const knownCalls = new Set();
+    markers.forEach(m => {
+      const base = (m.callsign || '').split('-')[0].toUpperCase();
+      if (base) knownCalls.add(base);
+      const dn = (m.display_name || '').toUpperCase();
+      if (dn) {
+        knownCalls.add(dn);
+        // Split compound names like "ROCK/KROCK" so both parts are known
+        dn.split('/').forEach(part => {
+          part = part.trim();
+          if (part) knownCalls.add(part);
+        });
+      }
+    });
+
+    // Extract unique callsigns from packets, track last heard time
+    const heardMap = new Map(); // callsign -> { lastSeen, digipath }
+
+    for (const pkt of packets) {
+      const ts = pkt.timestamp;
+      if (!ts) continue;
+
+      // Clean digipeater path for display (remove * and SSIDs)
+      const rawPath = (pkt.digipeaters || '').trim();
+      let cleanPath = '';
+      if (rawPath) {
+        cleanPath = rawPath.split(/[,\s]+/).map(s => s.replace('*', '').split('-')[0].trim()).filter(Boolean).join(' ');
+      }
+
+      // Source callsign
+      const src = (pkt.source || '').split('-')[0].toUpperCase();
+      if (src && !knownCalls.has(src)) {
+        const existing = heardMap.get(src);
+        if (!existing || ts > existing.lastSeen) {
+          heardMap.set(src, { lastSeen: ts, digipath: cleanPath });
+        }
+      }
+    }
+
+
+    // Sort by lastSeen descending (newest first)
+    const sorted = Array.from(heardMap.entries())
+      .map(([call, data]) => ({ call, ...data }))
+      .sort((a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || ''));
+
+    // Render
+    const list = document.getElementById('heard-list');
+    const count = document.getElementById('heard-count');
+    if (!list) return;
+    count.textContent = sorted.length;
+
+    if (sorted.length === 0) {
+      list.innerHTML = '<div class="empty-state">All heard nodes are on the map.</div>';
+      return;
+    }
+
+    list.innerHTML = sorted.map(h => {
+      const ago = timeAgo(h.lastSeen);
+      const viaText = h.digipath ? `via ${h.digipath}` : 'direct';
+      return `
+        <div class="heard-item">
+          <span class="dot"></span>
+          <div class="info">
+            <div class="call">${h.call}</div>
+            <div class="via">${viaText}</div>
+          </div>
+          <span class="ago">${ago}</span>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    // Silently ignore
+  }
+}
+
+// How To Modal
+document.getElementById('howto-btn').addEventListener('click', function() {
+  document.getElementById('howto-modal').classList.add('open');
+});
+function closeHowTo() {
+  document.getElementById('howto-modal').classList.remove('open');
+}
+</script>
+
+<!-- How To Modal -->
+<div class="modal-overlay" id="howto-modal">
+  <div class="modal-box">
+    <button class="modal-close" id="modal-close">&times;</button>
+    <h2>❓ How to Use This Map</h2>
+
+    <h3>Appearing on the Map</h3>
+    <p>To show up on this map, include a location tag in a packet beacon. The location tag can be part of a larger string of text. It does not need to be in a beacon on its own. Node markers gray out on the map after 7 days from the last heard packet, and disappear after 2 weeks.</p>
+    <p>The tag format uses commas:</p>
+    <div class="tag-box">
+      &lt;MAP:latitude,longitude,callsign&gt;<br>
+      &lt;MAP:latitude,longitude,callsign,nodename&gt;
+    </div>
+    <p style="text-align:center"><strong>Example (with and without node name):</strong><br>
+      <code>&lt;MAP:38.5795,-121.4934,KK6SEN&gt;</code><br>
+      <code>&lt;MAP:38.5795,-121.4934,KK6SEN,AUBNOD&gt;</code></p>
+    <p>Only use <strong>your own callsign</strong> and <strong>your own node name</strong>. If you do not have a separate node name, use the first example and only send your callsign. The node name is the exact name someone would use to connect to your node if it differs from your callsign.</p>
+    <p>Your beacon with the tag must be heard by the <strong>AUBNOD</strong> digipeater on 145.050 MHz. The <strong>AUBNOD</strong> node hears the <strong>KBANN</strong> node the best. If KBANN repeats your packet with the tag, the <strong>AUBNOD</strong> node will hear it and you will appear on the map. The update should be quick — about 30–60 seconds.</p>
+
+    <h3>Reading the Map</h3>
+    <p>Active nodes (heard within the last 7 days) show as green pins with callsign labels. Stale nodes (7 days–2 weeks) appear as gray pins. Nodes not heard for over 2 weeks are hidden from the map but still visible in the sidebar. Click a pin or a sidebar entry to zoom to its location.</p>
+
+    <h3>Finding Nodes</h3>
+    <p>Use the search box in the top-right corner to find a node by name or callsign. Press <strong>Enter</strong> to search — the map will zoom to the first match and show the result count.</p>
+
+    <h3>Automatic Updates</h3>
+    <p>Node positions and the sidebar refresh every 30 seconds. The connection status (green dot = online) and current zoom level are shown at the top and bottom of the page.</p>
+
+    <h3>Questions &amp; Issues</h3>
+    <p>If you find any issues or bugs, or just have questions, email me at <strong>KK6SEN@gmail.com</strong>.</p>
+  </div>
+</div>
+
+<script>
+document.getElementById('modal-close').addEventListener('click', closeHowTo);
+document.getElementById('howto-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeHowTo();
+});
+</script>
+
+<script>
+// ─── Packet Route Animation ───
+const packetAnimationLayer = L.layerGroup().addTo(map);
+let seenPacketIds = new Set();
+
+function buildCallsignLookup() {
+  const lookup = {};
+  for (const d of allMarkerData) {
+    const base = d.callsign.split('-')[0].toUpperCase();
+    lookup[base] = [d.lat, d.lon];
+    const dn = d.display_name.toUpperCase();
+    lookup[dn] = [d.lat, d.lon];
+  }
+  return lookup;
+}
+
+async function fetchRecentPackets() {
+  try {
+    const res = await fetch('/api/packets?limit=20&_=' + Date.now());
+    const packets = await res.json();
+    if (!Array.isArray(packets) || packets.length === 0) return;
+
+    const callsignMap = buildCallsignLookup();
+
+    for (const pkt of packets) {
+      if (seenPacketIds.has(pkt.id)) continue;
+
+      const path = (pkt.digipeaters || '').trim();
+      if (!path) continue;
+
+      // Parse digipeater path: "KJOHN, KBERR, WOODY, KBERR, KBANN"
+      const hops = path.split(/[,\s]+/).map(s => s.replace('*', '').split('-')[0].trim().toUpperCase()).filter(Boolean);
+      if (hops.length === 0) continue;
+
+      // Full path: source → digi1 → digi2 → ... → last_digi
+      const fullPath = [pkt.source.toUpperCase(), ...hops];
+
+      // Deduplicate consecutive repeats (e.g. KBERR, KBERR → KBERR)
+      const deduped = [fullPath[0]];
+      for (let i = 1; i < fullPath.length; i++) {
+        if (fullPath[i] !== fullPath[i - 1]) deduped.push(fullPath[i]);
+      }
+
+      // Resolve callsigns to coordinates
+      const coords = [];
+      for (const call of deduped) {
+        const base = call.split('-')[0];
+        if (callsignMap[base]) {
+          coords.push(callsignMap[base]);
+        } else {
+          // Try fuzzy match — partial prefix
+          const match = Object.keys(callsignMap).find(k => base.startsWith(k) || k.startsWith(base));
+          if (match) coords.push(callsignMap[match]);
+        }
+      }
+
+      if (coords.length >= 2) {
+        animatePacketRoute(coords, pkt.source, hops);
+      }
+
+      seenPacketIds.add(pkt.id);
+    }
+
+    // Prevent memory leak
+    if (seenPacketIds.size > 500) {
+      const arr = Array.from(seenPacketIds);
+      seenPacketIds = new Set(arr.slice(arr.length - 300));
+    }
+  } catch (e) {
+    // Silently ignore fetch errors on first load
+  }
+}
+
+function animatePacketRoute(coords, source, hops) {
+  // Rotating color palette — each new packet gets a distinct color
+  const palette = [
+    '#33cc77', '#cc4433', '#ccaa33', '#4477cc', '#7744bb',
+    '#cc6633', '#993366', '#33aa88', '#889922', '#bb5533',
+  ];
+  const color = palette[animatePacketRoute._colorIndex % palette.length];
+  animatePacketRoute._colorIndex = (animatePacketRoute._colorIndex || 0) + 1;
+
+  // Dashed path line
+  const line = L.polyline(coords, {
+    color: color, weight: 3, opacity: 0.6, dashArray: '8, 12',
+  }).addTo(packetAnimationLayer);
+
+  // Small dots at digipeater positions (skip source and destination)
+  const dots = [];
+  for (let i = 1; i < coords.length - 1; i++) {
+    const dot = L.circleMarker(coords[i], {
+      radius: 3.5, color: color, fillColor: color, fillOpacity: 0.7, weight: 1.5,
+      className: 'packet-pulse',
+    }).addTo(packetAnimationLayer);
+    dots.push(dot);
+  }
+
+  // Traveling pulse
+  const pulse = L.circleMarker(coords[0], {
+    radius: 6, color: color, fillColor: color, fillOpacity: 0.9, weight: 2,
+    className: 'packet-pulse',
+  }).addTo(packetAnimationLayer);
+
+  // Outer glow
+  const glow = L.circleMarker(coords[0], {
+    radius: 14, color: color, fillColor: color, fillOpacity: 0.12, weight: 0,
+    className: 'packet-pulse',
+  }).addTo(packetAnimationLayer);
+
+  // Trail
+  const trail = L.circleMarker(coords[0], {
+    radius: 4, color: color, fillColor: color, fillOpacity: 0.3, weight: 1,
+    className: 'packet-pulse',
+  }).addTo(packetAnimationLayer);
+
+  let frame = 0;
+  const totalFrames = 180; // ~3 seconds at ~60fps
+
+  function step() {
+    const rawProgress = frame / totalFrames;
+    if (rawProgress >= 1) {
+      // Final flash burst at destination
+      const finalPulse = L.circleMarker(coords[coords.length - 1], {
+        radius: 0, color: color, fillColor: color, fillOpacity: 0, weight: 2,
+        className: 'packet-pulse',
+      }).addTo(packetAnimationLayer);
+      let expand = 0;
+      function flash() {
+        expand++;
+        finalPulse.setStyle({
+          radius: 6 + expand * 2,
+          opacity: 1 - expand * 0.07,
+          fillOpacity: Math.max(0, 0.6 - expand * 0.06),
+        });
+        if (expand < 14) { requestAnimationFrame(flash); }
+        else {
+          // Remove moving elements immediately
+          packetAnimationLayer.removeLayer(finalPulse);
+          packetAnimationLayer.removeLayer(pulse);
+          packetAnimationLayer.removeLayer(glow);
+          packetAnimationLayer.removeLayer(trail);
+
+          // Keep path line and dots visible — fade out slowly over ~8s
+          let fadeStep = 0;
+          const FADE_STEPS = 15; // 15 steps × 200ms = 3 seconds
+          function fadeOut() {
+            fadeStep++;
+            const remain = 1 - fadeStep / FADE_STEPS;
+            if (remain <= 0) {
+              packetAnimationLayer.removeLayer(line);
+              dots.forEach(d => packetAnimationLayer.removeLayer(d));
+              return;
+            }
+            try {
+              line.setStyle({ opacity: 0.45 * remain * remain });
+              dots.forEach(d => d.setStyle({ fillOpacity: 0.5 * remain, opacity: remain }));
+            } catch (e) { /* layer may have been cleared */ }
+            setTimeout(fadeOut, 200);
+          }
+          setTimeout(fadeOut, 24000); // Hold steady for 24s, then fade over 3s
+        }
+      }
+      flash();
+      return;
+    }
+
+    // Ease in-out cubic
+    const eased = rawProgress < 0.5
+      ? 4 * rawProgress * rawProgress * rawProgress
+      : 1 - Math.pow(-2 * rawProgress + 2, 3) / 2;
+
+    const point = getPointAlongPath(coords, eased);
+
+    pulse.setLatLng(point);
+    glow.setLatLng(point);
+
+    // Trail follows slightly behind
+    const trailProgress = Math.max(0, eased - 0.08);
+    const trailPoint = getPointAlongPath(coords, trailProgress);
+    trail.setLatLng(trailPoint);
+
+    // Pulsing radius + glow
+    const breathe = Math.sin(rawProgress * Math.PI * 8) * 0.5 + 0.5;
+    pulse.setStyle({
+      radius: 5 + breathe * 2,
+      opacity: 0.4 + Math.sin(rawProgress * Math.PI) * 0.6,
+      fillOpacity: 0.3 + Math.sin(rawProgress * Math.PI) * 0.6,
+    });
+    glow.setStyle({
+      radius: 10 + Math.sin(rawProgress * Math.PI) * 8,
+      fillOpacity: 0.04 + Math.sin(rawProgress * Math.PI) * 0.1,
+    });
+    trail.setStyle({
+      opacity: 0.1 + (1 - rawProgress) * 0.2,
+      radius: Math.max(2, 4 - rawProgress * 2),
+    });
+
+    frame++;
+    requestAnimationFrame(step);
+  }
+
+  step();
+}
+
+function getPointAlongPath(coords, progress) {
+  let totalDist = 0;
+  const segLen = [];
+  for (let i = 1; i < coords.length; i++) {
+    const d = map.distance(L.latLng(coords[i - 1]), L.latLng(coords[i]));
+    segLen.push(d);
+    totalDist += d;
+  }
+  if (totalDist === 0) return coords[coords.length - 1];
+  let target = progress * totalDist;
+  let cum = 0;
+  for (let i = 0; i < segLen.length; i++) {
+    if (target <= cum + segLen[i]) {
+      const frac = segLen[i] > 0 ? (target - cum) / segLen[i] : 0;
+      return [
+        coords[i][0] + (coords[i + 1][0] - coords[i][0]) * frac,
+        coords[i][1] + (coords[i + 1][1] - coords[i][1]) * frac,
+      ];
+    }
+    cum += segLen[i];
+  }
+  return coords[coords.length - 1];
+}
+
+function syncAnimToggle() {
+  if (showAnimations) {
+    if (!animInterval) {
+      fetchRecentPackets();
+      animInterval = setInterval(fetchRecentPackets, 10000);
+    }
+  } else {
+    if (animInterval) {
+      clearInterval(animInterval);
+      animInterval = null;
+    }
+    packetAnimationLayer.clearLayers();
+    seenPacketIds = new Set();
+  }
+}
+syncAnimToggle();
+
+// Pause/resume animations when tab visibility changes
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) {
+    // Tab hidden — stop packet fetch + clear all queued animations
+    if (animInterval) {
+      clearInterval(animInterval);
+      animInterval = null;
+    }
+    packetAnimationLayer.clearLayers();
+    seenPacketIds = new Set();
+  } else {
+    // Tab visible again — resume animation polling fresh
+    if (showAnimations && !animInterval) {
+      fetchRecentPackets();
+      animInterval = setInterval(fetchRecentPackets, 10000);
+    }
+  }
+});
+</script>
+
+<script>
+// ─── Toggle Event Handlers ───
+document.getElementById('toggle-names').addEventListener('change', function() {
+  showLabels = this.checked;
+  localStorage.setItem('mapShowLabels', showLabels);
+  // Re-render markers from cache
+  if (cachedMarkers && cachedMarkers.length) {
+    markersLayer.clearLayers();
+    allMarkerData = [];
+    cachedMarkers.forEach(m => {
+      if (isExpired(m.last_seen) && !(m.static === 1 || m.static === true || m.static === '1')) return;
+
+      const callDisplay = m.callsign + (m.ssid > 0 ? '-' + m.ssid : '');
+      const lastSeen = new Date(m.last_seen).toLocaleTimeString();
+      const isStatic = m.static === 1 || m.static === true || m.static === '1';
+      const isHV = m.high_value === 1 || m.high_value === true || m.high_value === '1';
+      const isStaleNode = isStale(m.last_seen) && !isStatic;
+
+      let markerColor;
+      let flagBadge = '';
+      if (isHV) { markerColor = '#ff9800'; flagBadge = '<span class="popup-flag flag-hv">HIGH VALUE</span>'; }
+      else if (isStaleNode) { markerColor = '#555577'; }
+      else { markerColor = '#00d4aa'; }
+      if (isStatic) { flagBadge += '<span class="popup-flag flag-static">STATIC</span>'; }
+
+      const popupContent = `
+          <div class="popup-call">${m.display_name}${flagBadge}</div>
+          <div style="margin-top:4px;"><span class="popup-label">Callsign</span><br><span class="popup-value">${callDisplay}</span></div>
+          <div style="margin-top:6px;"><span class="popup-label">Position</span><br><span class="popup-value">${m.lat.toFixed(4)}, ${m.lon.toFixed(4)}</span></div>
+          <div style="margin-top:6px;"><span class="popup-label">Beacons</span><br><span class="popup-value">${m.packet_count}</span></div>
+          <div style="margin-top:6px;"><span class="popup-label">Path</span><br><span class="popup-value">${m.last_path || '—'}</span></div>
+          <div style="margin-top:6px;"><span class="popup-label">Last Heard</span><br><span class="popup-value">${lastSeen}</span></div>
+        `;
+
+      let marker;
+      if (showLabels) {
+        marker = L.marker([m.lat, m.lon], { icon: makeMapIcon(m.display_name, markerColor) }).bindPopup(popupContent);
+      } else {
+        const dotColor = isHV ? '#ef6c00' : isStaleNode ? '#888888' : '#43a047';
+        marker = L.circleMarker([m.lat, m.lon], {
+          radius: 5, color: '#000000', weight: 1, fillColor: dotColor, fillOpacity: 0.9,
+        }).bindPopup(popupContent);
+      }
+
+      markersLayer.addLayer(marker);
+      allMarkerData.push({ marker, display_name: m.display_name, callsign: callDisplay, lat: m.lat, lon: m.lon, static: isStatic, high_value: isHV });
+    });
+  }
+});
+
+document.getElementById('toggle-anim').addEventListener('change', function() {
+  showAnimations = this.checked;
+  localStorage.setItem('mapShowAnimations', showAnimations);
+  syncAnimToggle();
+});
+</script>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body>
+</html>
+
+

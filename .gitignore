@@ -1,0 +1,22 @@
+# Databases, runtime state, and generated artifacts (never committed)
+db/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+kiss_capture.log
+kiss_capture.pid
+.map_monitor_state
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Snapshot/backup clutter
+*.bak
+*.backup*
+*.pre-*
+backups/
