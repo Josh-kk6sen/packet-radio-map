@@ -7,7 +7,8 @@ A self-contained packet-radio (AX.25) **live map + dashboard** that listens to a
 [KISS](https://en.wikipedia.org/wiki/KISS_(TNC)) TNC on TCP, decodes AX.25 frames, stores
 them in SQLite, and serves an interactive Leaflet map and a statistics dashboard over HTTP.
 
-Built for — and running on — the **KK6SEN** station (145.050 MHz). The code is deliberately
+Built for, and running on, the **KK6SEN** station — but it's frequency-agnostic and works
+with any packet-radio (AX.25) frequency your TNC is tuned to. The code is deliberately
 simple: no build step, no framework, just a single Python daemon and a couple of static
 HTML pages.
 
@@ -116,7 +117,7 @@ start.sh                # start/stop/status/logs helper
 This project is **vibe coded** — built with AI assistance (code, refactors, and docs
 generated with an LLM assistant) and reviewed by the author (KK6SEN). It started from
 scratch as a packet-radio monitoring tool, evolved through iterative feature work, and
-runs live against the 145.050 MHz station. Human-reviewed before every deployment.
+runs live on the author's station. Human-reviewed before every deployment.
 
 ## License
 
