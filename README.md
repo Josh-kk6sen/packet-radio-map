@@ -79,6 +79,20 @@ All settings are overridable via environment variables (defaults in parentheses)
 
 The local database and logs live under `db/` and `*.log` — all git-ignored.
 
+## Customize the page for your network
+
+The draft ships with the author's (KK6SEN) network label baked into the map page. Edit
+**`web/static/map.html`** for your own network:
+
+- **Page title & header** — search for `145.050 Packet Radio Network` (two places: the
+  `<title>` tag and the page header) and replace with your network's name/frequency.
+- **"How to Use" beacon guide** — the modal mentions the `AUBNOD` digipeater and `KBANN`
+  node. Update the node/frequency names to match your own beacon path.
+- **Contact email** — set `CONTACT_EMAIL` (see config above) instead of editing the file.
+
+None of these affect functionality — they're display and help text describing the network
+your stations actually use.
+
 ## Optional: `tunnel_proxy.py`
 
 Production serves the map through a Cloudflare tunnel; `tunnel_proxy.py` is a minimal
