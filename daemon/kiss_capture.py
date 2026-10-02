@@ -34,6 +34,7 @@ DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.dirname
 WEB_PORT = int(os.environ.get("WEB_PORT", "8080"))
 WEB_HOST = os.environ.get("WEB_HOST", "0.0.0.0")
 STATIC_DIR = os.environ.get("STATIC_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "web", "static"))
+CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "KK6SEN@gmail.com")
 RECONNECT_DELAY = int(os.environ.get("RECONNECT_DELAY", "5"))  # seconds between reconnect attempts
 
 # ─── KISS Protocol Constants ──────────────────────────────────────
@@ -1178,8 +1179,35 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json(msgs)
         elif path == "/" or path == "":
             self.path = "/index.html"
-            super().do_GET()
+            self._serve_static()
         else:
+            self._serve_static()
+
+    def _serve_static(self):
+        """Serve a static file, substituting runtime config tokens (e.g. contact email)."""
+        file_path = os.path.join(STATIC_DIR, urllib.parse.unquote(self.path).lstrip("/"))
+        real = os.path.realpath(file_path)
+        if not real.startswith(os.path.realpath(STATIC_DIR)):
+            super().do_GET()
+            return
+        # Default directory index resolution for "/" -> "index.html"
+        if os.path.isdir(real):
+            self.path = os.path.join(self.path, "index.html")
+            file_path = os.path.join(real, "index.html")
+        if not os.path.isfile(file_path) or not file_path.endswith(".html"):
+            super().do_GET()
+            return
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                body = f.read()
+            body = body.replace("__CONTACT_EMAIL__", CONTACT_EMAIL)
+            data = body.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except Exception:
             super().do_GET()
 
     def do_POST(self):
